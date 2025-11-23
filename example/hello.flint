@@ -1,1 +1,5 @@
-mut x = (10, "two")
+use flint/io.{println}
+
+pub fn main() {
+    println("Hello, world!")
+}
