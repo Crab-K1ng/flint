@@ -6,6 +6,7 @@ import (
 
 	"flint/internal/lexer"
 	"flint/internal/parser"
+	"flint/internal/typechecker"
 )
 
 func main() {
@@ -31,6 +32,16 @@ func main() {
 			fmt.Println(e)
 		}
 		return
+	}
+	tc := typechecker.New()
+	types := make([]*typechecker.Type, len(prog.Exprs))
+	for i, ex := range prog.Exprs {
+		ty, err := tc.CheckExpr(ex)
+		if err != nil {
+			fmt.Printf("Type error: %v\n", err)
+			return
+		}
+		types[i] = ty
 	}
 	for _, ex := range prog.Exprs {
 		fmt.Println(parser.DumpExpr(ex))

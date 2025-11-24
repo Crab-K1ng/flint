@@ -182,13 +182,25 @@ type QualifiedExpr struct {
 
 func (q *QualifiedExpr) exprNode() {}
 func (q *QualifiedExpr) NodeType() string {
-	return "UseExpr"
+	return "QualifiedExpr"
+}
+
+type FieldAccessExpr struct {
+	Left  Expr
+	Right string
+	Pos   lexer.Token
+}
+
+func (q *FieldAccessExpr) exprNode() {}
+func (q *FieldAccessExpr) NodeType() string {
+	return "FieldAccessExpr"
 }
 
 type IfExpr struct {
 	Cond Expr
 	Then Expr
 	Else Expr
+	Pos  lexer.Token
 }
 
 func (i *IfExpr) exprNode() {}
@@ -200,6 +212,7 @@ type MatchArm struct {
 	Pattern Expr
 	Guard   Expr
 	Body    Expr
+	Pos     lexer.Token
 }
 
 func (m *MatchArm) exprNode() {}
@@ -210,6 +223,7 @@ func (m *MatchArm) NodeType() string {
 type MatchExpr struct {
 	Value Expr
 	Arms  []*MatchArm
+	Pos   lexer.Token
 }
 
 func (m *MatchExpr) exprNode() {}
@@ -220,6 +234,7 @@ func (m *MatchExpr) NodeType() string {
 type PipelineExpr struct {
 	Left  Expr
 	Right Expr
+	Pos   lexer.Token
 }
 
 func (p *PipelineExpr) exprNode() {}
@@ -232,6 +247,7 @@ type ForExpr struct {
 	Iterable Expr
 	Where    Expr
 	Body     Expr
+	Pos      lexer.Token
 }
 
 func (f *ForExpr) exprNode() {}

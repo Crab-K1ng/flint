@@ -65,9 +65,9 @@ func (p *Parser) parseExpression(minPrec int) Expr {
 			if !ok {
 				return nil
 			}
-			left = &QualifiedExpr{
+			left = &FieldAccessExpr{
 				Left:  left,
-				Right: rightTok,
+				Right: rightTok.Lexeme,
 				Pos:   opTok,
 			}
 			continue
@@ -108,17 +108,35 @@ func (p *Parser) parsePrimary() Expr {
 	case lexer.Identifier:
 		p.eat()
 		var expr Expr = &Identifier{Name: tok.Lexeme, Pos: tok}
-		for p.cur().Kind == lexer.Colon || p.cur().Kind == lexer.Dot {
-			opTok := p.eat()
-			rightTok, ok := p.expect(lexer.Identifier)
-			if !ok {
-				return nil
+		for {
+			if p.cur().Kind == lexer.Colon {
+				opTok := p.eat()
+				rightTok, ok := p.expect(lexer.Identifier)
+				if !ok {
+					return nil
+				}
+				expr = &QualifiedExpr{
+					Left:  expr,
+					Right: rightTok,
+					Pos:   opTok,
+				}
+				continue
 			}
-			expr = &QualifiedExpr{
-				Left:  expr,
-				Right: rightTok,
-				Pos:   opTok,
+			if p.cur().Kind == lexer.Dot {
+				opTok := p.eat()
+				fieldTok, ok := p.expect(lexer.Identifier)
+				if !ok {
+					return nil
+				}
+				expr = &FieldAccessExpr{
+					Left:  expr,
+					Right: fieldTok.Lexeme,
+					Pos:   opTok,
+				}
+				continue
 			}
+
+			break
 		}
 		if p.cur().Kind == lexer.LeftParen {
 			return p.parseCall(expr)

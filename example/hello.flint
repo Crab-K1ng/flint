@@ -1,5 +1,5 @@
 use flint/io.{println}
 
-pub fn main() {
+pub fn main() Nil {
     println("Hello, world!")
 }

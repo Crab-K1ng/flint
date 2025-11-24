@@ -107,6 +107,11 @@ func dump(e Expr, indent string, isLast bool) string {
 		out += fmt.Sprintf("%sLeft:\n%s\n", nextIndent, dump(n.Left, nextIndent+"  ", true))
 		out += fmt.Sprintf("%sRight:\n%s", nextIndent, dump(&Identifier{Name: n.Right.Lexeme, Pos: n.Right}, nextIndent+"  ", true))
 		return out
+	case *FieldAccessExpr:
+		out := fmt.Sprintf("%s%sField\n", indent, connector)
+		out += fmt.Sprintf("%sLeft:\n%s\n", nextIndent, dump(n.Left, nextIndent+"  ", true))
+		out += fmt.Sprintf("%sRight:\n%s", nextIndent, dump(&Identifier{Name: n.Right, Pos: n.Pos}, nextIndent+"  ", true))
+		return out
 	case *IfExpr:
 		out := fmt.Sprintf("%s%sIfExpr\n", indent, connector)
 		out += fmt.Sprintf("%sCond:\n%s\n", nextIndent, dump(n.Cond, nextIndent+"  ", true))
