@@ -7,23 +7,23 @@ func (tc *TypeChecker) resolveType(t parser.Expr) *Type {
 	case *parser.TypeExpr:
 		switch typ.Name {
 		case "Int":
-			return &Type{kind: TyInt}
+			return &Type{TKind: TyInt}
 		case "Float":
-			return &Type{kind: TyFloat}
+			return &Type{TKind: TyFloat}
 		case "Bool":
-			return &Type{kind: TyBool}
+			return &Type{TKind: TyBool}
 		case "String":
-			return &Type{kind: TyString}
+			return &Type{TKind: TyString}
 		case "Byte":
-			return &Type{kind: TyByte}
+			return &Type{TKind: TyByte}
 		case "Nil":
-			return &Type{kind: TyNil}
+			return &Type{TKind: TyNil}
 		case "List":
-			elemTy := &Type{kind: TyNil}
+			elemTy := &Type{TKind: TyNil}
 			if typ.Generic != nil {
 				elemTy = tc.resolveType(typ.Generic)
 			}
-			return &Type{kind: TyList, Elem: elemTy}
+			return &Type{TKind: TyList, Elem: elemTy}
 		}
 	case *parser.TupleTypeExpr:
 		elems := []*Type{}
@@ -31,7 +31,7 @@ func (tc *TypeChecker) resolveType(t parser.Expr) *Type {
 			e := tc.resolveType(te)
 			elems = append(elems, e)
 		}
-		return &Type{kind: TyTuple, TElems: elems}
+		return &Type{TKind: TyTuple, TElems: elems}
 	}
-	return &Type{kind: TyError}
+	return &Type{TKind: TyError}
 }

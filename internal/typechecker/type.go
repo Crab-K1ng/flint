@@ -8,7 +8,7 @@ import (
 type TypeKind int
 
 type Type struct {
-	kind   TypeKind
+	TKind  TypeKind
 	Params []*Type
 	Ret    *Type
 	Elem   *Type
@@ -30,7 +30,7 @@ const (
 )
 
 func (t Type) String() string {
-	switch t.kind {
+	switch t.TKind {
 	case TyInt:
 		return "Int"
 	case TyFloat:
@@ -73,16 +73,16 @@ func (t Type) String() string {
 	return "<error>"
 }
 
-func (t Type) Kind() TypeKind { return t.kind }
+func (t Type) Kind() TypeKind { return t.TKind }
 
 func (t *Type) Equal(u *Type) bool {
 	if t == nil || u == nil {
 		return t == u
 	}
-	if t.kind != u.kind {
+	if t.TKind != u.TKind {
 		return false
 	}
-	switch t.kind {
+	switch t.TKind {
 	case TyFunc:
 		if len(t.Params) != len(u.Params) {
 			return false

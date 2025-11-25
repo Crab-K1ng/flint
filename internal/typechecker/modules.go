@@ -1,12 +1,10 @@
 package typechecker
 
-// Testing for module type checking
-
 import "strings"
 
 var modules = map[string]*Env{}
 
-func registerModule(path []string, env *Env) {
+func RegisterModule(path []string, env *Env) {
 	modules[strings.Join(path, "/")] = env
 }
 
@@ -15,25 +13,27 @@ func getModule(path []string) (*Env, bool) {
 	return env, ok
 }
 
+// Module testing
+
 func init() {
 	ioEnv := NewEnv(nil)
 	ioEnv.Set("print", &Type{
-		kind:   TyFunc,
-		Params: []*Type{{kind: TyString}},
-		Ret:    &Type{kind: TyNil},
+		TKind:  TyFunc,
+		Params: []*Type{{TKind: TyString}},
+		Ret:    &Type{TKind: TyNil},
 	})
 	ioEnv.Set("println", &Type{
-		kind:   TyFunc,
-		Params: []*Type{{kind: TyString}},
-		Ret:    &Type{kind: TyNil},
+		TKind:  TyFunc,
+		Params: []*Type{{TKind: TyString}},
+		Ret:    &Type{TKind: TyNil},
 	})
-	registerModule([]string{"flint", "io"}, ioEnv)
+	RegisterModule([]string{"flint", "io"}, ioEnv)
 
 	strEnv := NewEnv(nil)
 	strEnv.Set("to_string", &Type{
-		kind:   TyFunc,
-		Params: []*Type{{kind: TyInt}},
-		Ret:    &Type{kind: TyString},
+		TKind:  TyFunc,
+		Params: []*Type{{TKind: TyInt}},
+		Ret:    &Type{TKind: TyString},
 	})
-	registerModule([]string{"flint", "string"}, strEnv)
+	RegisterModule([]string{"flint", "string"}, strEnv)
 }
