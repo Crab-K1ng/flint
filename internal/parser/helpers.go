@@ -32,7 +32,11 @@ func (p *Parser) expect(kind lexer.TokenKind) (lexer.Token, bool) {
 	if p.cur().Kind == kind {
 		return p.eat(), true
 	}
-	msg := fmt.Sprintf("expected token %v, got %v at %d:%d", kind, p.cur().Kind, p.cur().Line, p.cur().Column)
-	p.error(msg)
-	return p.cur(), false
+	tok := p.cur()
+	p.errorAt(tok, fmt.Sprintf(
+		"expected token %v, got %v",
+		kind, tok.Kind,
+	))
+	p.synchronize()
+	return tok, false
 }

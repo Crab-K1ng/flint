@@ -22,7 +22,7 @@ func ParseProgram(tokens []lexer.Token) (*Program, []string) {
 		}
 		expr := p.parseExpression(0)
 		if expr == nil {
-			p.eat()
+			p.synchronize()
 			continue
 		}
 		out.Exprs = append(out.Exprs, expr)
@@ -84,8 +84,7 @@ func (p *Parser) parseExpression(minPrec int) Expr {
 		nextMin := prec + 1
 		right := p.parseExpression(nextMin)
 		if right == nil {
-			p.error(fmt.Sprintf("missing right-hand side after operator %q at %d:%d", opTok.Lexeme, opTok.Line, opTok.Column))
-			return nil
+			p.errorAt(opTok, fmt.Sprintf("missing right-hand side after operator %q", opTok.Lexeme))
 		}
 		if opTok.Kind == lexer.Pipe {
 			left = &PipelineExpr{
@@ -148,8 +147,7 @@ func (p *Parser) parsePrimary() Expr {
 		clean := lexer.StripNumericSeparators(tok.Lexeme)
 		v, err := strconv.ParseInt(clean, 10, 64)
 		if err != nil {
-			p.error(fmt.Sprintf("invalid int literal %q at %d:%d", tok.Lexeme, tok.Line, tok.Column))
-			return nil
+			p.errorAt(tok, fmt.Sprintf("invalid int literal %q", tok.Lexeme))
 		}
 		return &IntLiteral{Value: v, Raw: tok.Lexeme, Pos: tok}
 	case lexer.Float:
@@ -157,8 +155,7 @@ func (p *Parser) parsePrimary() Expr {
 		clean := lexer.StripNumericSeparators(tok.Lexeme)
 		f, err := strconv.ParseFloat(clean, 64)
 		if err != nil {
-			p.error(fmt.Sprintf("invalid float literal %q at %d:%d", tok.Lexeme, tok.Line, tok.Column))
-			return nil
+			p.errorAt(tok, fmt.Sprintf("invalid float literal %q", tok.Lexeme))
 		}
 		return &FloatLiteral{Value: f, Raw: tok.Lexeme, Pos: tok}
 	case lexer.String:
@@ -167,8 +164,7 @@ func (p *Parser) parsePrimary() Expr {
 	case lexer.Byte:
 		p.eat()
 		if len(tok.Lexeme) != 3 || tok.Lexeme[0] != '\'' || tok.Lexeme[2] != '\'' {
-			p.error(fmt.Sprintf("invalid byte literal %q at %d:%d", tok.Lexeme, tok.Line, tok.Column))
-			return nil
+			p.errorAt(tok, fmt.Sprintf("invalid byte literal %q", tok.Lexeme))
 		}
 		return &ByteLiteral{
 			Value: tok.Lexeme[1],
@@ -202,6 +198,7 @@ func (p *Parser) parsePrimary() Expr {
 			break
 		}
 		if _, ok := p.expect(lexer.RightParen); !ok {
+			p.synchronize()
 			return nil
 		}
 		if len(elements) == 1 {
@@ -212,8 +209,7 @@ func (p *Parser) parsePrimary() Expr {
 		p.eat()
 		right := p.parseExpression(7)
 		if right == nil {
-			p.error(fmt.Sprintf("missing expression after prefix %q at %d:%d", tok.Lexeme, tok.Line, tok.Column))
-			return nil
+			p.errorAt(tok, fmt.Sprintf("missing expression after prefix %q", tok.Lexeme))
 		}
 		return &PrefixExpr{Operator: tok, Right: right}
 	case lexer.KwPub:
@@ -224,7 +220,7 @@ func (p *Parser) parsePrimary() Expr {
 		case lexer.KwType:
 			return p.recordTypeExpr(true)
 		default:
-			p.error("expected `fn` or `type` after `pub`")
+			p.errorAt(p.cur(), "expected `fn` or `type` after `pub`")
 			return nil
 		}
 	case lexer.KwFn:
@@ -244,7 +240,7 @@ func (p *Parser) parsePrimary() Expr {
 	case lexer.KwType:
 		return p.recordTypeExpr(false)
 	default:
-		p.error(fmt.Sprintf("unexpected token %q (%v) at %d:%d", tok.Lexeme, tok.Kind, tok.Line, tok.Column))
+		p.errorAt(tok, fmt.Sprintf("unexpected token %q", tok.Lexeme))
 		return nil
 	}
 }
@@ -256,8 +252,7 @@ func (p *Parser) parseCall(callee Expr) Expr {
 		for {
 			arg := p.parseExpression(0)
 			if arg == nil {
-				p.error("invalid argument expression in call")
-				return nil
+				p.errorAt(p.cur(), "invalid argument expression in call")
 			}
 			args = append(args, arg)
 			if p.cur().Kind == lexer.Comma {
@@ -269,6 +264,7 @@ func (p *Parser) parseCall(callee Expr) Expr {
 	}
 	_, ok := p.expect(lexer.RightParen)
 	if !ok {
+		p.synchronize()
 		return nil
 	}
 	return &CallExpr{Callee: callee, Args: args, Pos: lparen}
@@ -287,12 +283,12 @@ func (p *Parser) parseValDecl() Expr {
 	}
 	_, ok = p.expect(lexer.Equal)
 	if !ok {
+		p.synchronize()
 		return nil
 	}
 	value := p.parseExpression(0)
 	if value == nil {
-		p.error(fmt.Sprintf("missing initializer for val %s", nameTok.Lexeme))
-		return nil
+		p.errorAt(nameTok, fmt.Sprintf("missing initializer for val %s", nameTok.Lexeme))
 	}
 	return &ValDeclExpr{
 		Name:  nameTok,
@@ -314,12 +310,12 @@ func (p *Parser) parseMutDecl() Expr {
 	}
 	_, ok = p.expect(lexer.Equal)
 	if !ok {
+		p.synchronize()
 		return nil
 	}
 	value := p.parseExpression(0)
 	if value == nil {
-		p.error(fmt.Sprintf("missing initializer for mut %s", nameTok.Lexeme))
-		return nil
+		p.errorAt(nameTok, fmt.Sprintf("missing initializer for mut %s", nameTok.Lexeme))
 	}
 	return &MutDeclExpr{
 		Name:  nameTok,
@@ -334,7 +330,10 @@ func (p *Parser) parseFunc(pub bool) Expr {
 	if !ok {
 		return nil
 	}
-	p.expect(lexer.LeftParen)
+	if _, ok := p.expect(lexer.LeftParen); !ok {
+		p.synchronize()
+		return nil
+	}
 	params := []Param{}
 	if p.cur().Kind != lexer.RightParen {
 		for {
@@ -356,7 +355,10 @@ func (p *Parser) parseFunc(pub bool) Expr {
 			break
 		}
 	}
-	p.expect(lexer.RightParen)
+	if _, ok := p.expect(lexer.RightParen); !ok {
+		p.synchronize()
+		return nil
+	}
 	var retType Expr
 	if p.cur().Kind != lexer.LeftBrace {
 		retType = p.parseType()
@@ -375,7 +377,10 @@ func (p *Parser) parseFunc(pub bool) Expr {
 }
 
 func (p *Parser) parseBlock() Expr {
-	p.expect(lexer.LeftBrace)
+	if _, ok := p.expect(lexer.LeftBrace); !ok {
+		p.synchronize()
+		return nil
+	}
 	exprs := []Expr{}
 	for p.cur().Kind != lexer.RightBrace && p.cur().Kind != lexer.EndOfFile {
 		if p.cur().Kind == lexer.Comment {
@@ -389,7 +394,9 @@ func (p *Parser) parseBlock() Expr {
 		}
 		exprs = append(exprs, e)
 	}
-	p.expect(lexer.RightBrace)
+	if _, ok := p.expect(lexer.RightBrace); !ok {
+		p.synchronize()
+	}
 	return &BlockExpr{Exprs: exprs}
 }
 
@@ -399,6 +406,7 @@ func (p *Parser) parseUse() Expr {
 	for {
 		tok, ok := p.expect(lexer.Identifier)
 		if !ok {
+			p.errorAt(p.cur(), "expected identifier in use path")
 			return nil
 		}
 		path = append(path, tok.Lexeme)
@@ -417,6 +425,7 @@ func (p *Parser) parseUse() Expr {
 		for {
 			memberTok, ok := p.expect(lexer.Identifier)
 			if !ok {
+				p.errorAt(p.cur(), "expected member in use {...}")
 				return nil
 			}
 			members = append(members, memberTok.Lexeme)
@@ -427,12 +436,17 @@ func (p *Parser) parseUse() Expr {
 			}
 			break
 		}
-		p.expect(lexer.RightBrace)
+		if _, ok := p.expect(lexer.RightBrace); !ok {
+			p.errorAt(p.cur(), "expected '}' after members list")
+			p.synchronize()
+			return nil
+		}
 	}
 	if p.cur().Kind == lexer.KwAs {
 		p.eat()
 		aliasTok, ok := p.expect(lexer.Identifier)
 		if !ok {
+			p.errorAt(p.cur(), "expected identifier after 'as'")
 			return nil
 		}
 		alias = aliasTok.Lexeme
@@ -449,21 +463,18 @@ func (p *Parser) parseIf() Expr {
 	p.eat()
 	cond := p.parseExpression(0)
 	if cond == nil {
-		p.error("expected condition after 'if'")
-		return nil
+		p.errorAt(p.cur(), "expected condition after 'if'")
 	}
 	thenBlock := p.parseBlock()
 	if thenBlock == nil {
-		p.error("expected block after 'if' condition")
-		return nil
+		p.errorAt(p.cur(), "expected block after 'if' condition")
 	}
 	var elseBlock Expr
 	if p.cur().Kind == lexer.KwElse {
 		p.eat()
 		elseBlock = p.parseBlock()
 		if elseBlock == nil {
-			p.error("expected block after 'else'")
-			return nil
+			p.errorAt(p.cur(), "expected block after 'else'")
 		}
 	}
 	return &IfExpr{
@@ -477,11 +488,11 @@ func (p *Parser) parseMatch() Expr {
 	p.eat()
 	value := p.parseExpression(0)
 	if value == nil {
-		p.error("expected expression after 'match'")
-		return nil
+		p.errorAt(p.cur(), "expected expression after 'match'")
 	}
 	_, ok := p.expect(lexer.LeftBrace)
 	if !ok {
+		p.synchronize()
 		return nil
 	}
 	arms := []*MatchArm{}
@@ -496,8 +507,7 @@ func (p *Parser) parseMatch() Expr {
 		} else {
 			pattern = p.parseExpression(0)
 			if pattern == nil {
-				p.error("expected pattern in match arm")
-				return nil
+				p.errorAt(p.cur(), "expected pattern in match arm")
 			}
 		}
 		var guard Expr
@@ -505,8 +515,7 @@ func (p *Parser) parseMatch() Expr {
 			p.eat()
 			guard = p.parseExpression(0)
 			if guard == nil {
-				p.error("expected guard expression after 'if'")
-				return nil
+				p.errorAt(p.cur(), "expected guard expression after 'if'")
 			}
 		}
 		_, ok := p.expect(lexer.RArrow)
@@ -515,8 +524,7 @@ func (p *Parser) parseMatch() Expr {
 		}
 		body := p.parseExpression(0)
 		if body == nil {
-			p.error("expected body expression in match arm")
-			return nil
+			p.errorAt(p.cur(), "expected body expression in match arm")
 		}
 		arms = append(arms, &MatchArm{
 			Pattern: pattern,
@@ -526,6 +534,7 @@ func (p *Parser) parseMatch() Expr {
 	}
 	_, ok = p.expect(lexer.RightBrace)
 	if !ok {
+		p.synchronize()
 		return nil
 	}
 	return &MatchExpr{
@@ -552,6 +561,7 @@ func (p *Parser) parseForExpr() Expr {
 	}
 	_, ok := p.expect(lexer.KwIn)
 	if !ok {
+		p.synchronize()
 		return nil
 	}
 	iterable := p.parseExpression(0)
@@ -581,8 +591,7 @@ func (p *Parser) parseList() Expr {
 	for p.cur().Kind != lexer.RightBracket && p.cur().Kind != lexer.EndOfFile {
 		elem := p.parseExpression(0)
 		if elem == nil {
-			p.error("invalid list element")
-			return nil
+			p.errorAt(p.cur(), "invalid list element")
 		}
 		elements = append(elements, elem)
 		if p.cur().Kind == lexer.Comma {
@@ -633,10 +642,13 @@ func (p *Parser) parseType() Expr {
 			}
 			break
 		}
-		p.expect(lexer.RightParen)
+		if _, ok := p.expect(lexer.RightParen); !ok {
+			p.synchronize()
+			return nil
+		}
 		return &TupleTypeExpr{Types: types, Pos: tok}
 	default:
-		p.error(fmt.Sprintf("expected type, got %q (%v) at %d:%d", tok.Lexeme, tok.Kind, tok.Line, tok.Column))
+		p.errorAt(tok, fmt.Sprintf("expected type, got %q (%v)", tok.Lexeme, tok.Kind))
 		return nil
 	}
 }
@@ -661,8 +673,7 @@ func (p *Parser) recordTypeExpr(pub bool) Expr {
 				return nil
 			}
 			if p.cur().Kind != lexer.Colon {
-				p.error(fmt.Sprintf("expected ':' after field name %s", fieldTok.Lexeme))
-				return nil
+				p.errorAt(fieldTok, fmt.Sprintf("expected ':' after field name %s", fieldTok.Lexeme))
 			}
 			p.eat()
 			fieldType := p.parseType()
@@ -674,7 +685,10 @@ func (p *Parser) recordTypeExpr(pub bool) Expr {
 				p.eat()
 			}
 		}
-		p.expect(lexer.RightBrace)
+		if _, ok := p.expect(lexer.RightBrace); !ok {
+			p.synchronize()
+			return nil
+		}
 		body = &RecordTypeExpr{Name: nameTok, Fields: fields, Pos: nameTok}
 	}
 	return &TypeDeclExpr{

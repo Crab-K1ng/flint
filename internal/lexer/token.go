@@ -10,6 +10,9 @@ type Token struct {
 	Lexeme string    // exact source text
 	Line   int       // 1-based line number
 	Column int       // 1-based column number
+
+	File   string
+	Source []rune
 }
 
 // Token kinds for the Flint language.

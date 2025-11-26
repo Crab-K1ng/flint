@@ -257,7 +257,14 @@ func (l *Lexer) peekRuneAt(offset int) rune {
 }
 
 func (l *Lexer) makeToken(kind TokenKind, lexeme string, lineNumber, columnNumber int) Token {
-	return Token{Kind: kind, Lexeme: lexeme, Line: lineNumber, Column: columnNumber}
+	return Token{
+		Kind:   kind,
+		Lexeme: lexeme,
+		Line:   lineNumber,
+		Column: columnNumber,
+		File:   l.fileName,
+		Source: l.source,
+	}
 }
 
 func (l *Lexer) scanIdentifier() string {
