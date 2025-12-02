@@ -1,6 +1,6 @@
 package toml
 
-type PackageConfig struct {
+type packageConfig struct {
 	Name        string   `toml:"name"`
 	Version     string   `toml:"version"`
 	Authors     []string `toml:"authors"`
@@ -9,8 +9,8 @@ type PackageConfig struct {
 	Repository  string   `toml:"repository"`
 }
 
-func newExamplePackageConfig() PackageConfig {
-	return PackageConfig{
+func newExamplePackageConfig() packageConfig {
+	return packageConfig{
 		Name:        "example-package",
 		Version:     "0.1.0",
 		Authors:     []string{"author1", "author2"},

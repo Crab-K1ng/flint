@@ -9,8 +9,8 @@ import (
 
 type (
 	ProjectConfig struct {
-		PackageConfig PackageConfig `toml:"package"`
-		BuildConfig   BuildConfig   `toml:"build"`
+		PackageConfig packageConfig `toml:"package"`
+		BuildConfig   buildConfig   `toml:"build"`
 	}
 )
 
@@ -23,25 +23,25 @@ func newExampleProjectConfig() ProjectConfig {
 	}
 }
 
-func NewExampleProjectConfigAt(path string) {
-	SaveProjectConfigAt(newExampleProjectConfig(), path)
+func newExampleProjectConfigAt(path string) {
+	saveProjectConfigAt(newExampleProjectConfig(), path)
 }
 
-func LoadProjectConfig() (ProjectConfig, error) {
-	return LoadProjectConfigAt("")
+func loadProjectConfig() (ProjectConfig, error) {
+	return loadProjectConfigAt("")
 }
 
-func LoadProjectConfigAt(path string) (ProjectConfig, error){
+func loadProjectConfigAt(path string) (ProjectConfig, error){
 	var config ProjectConfig
 	_, err := toml.DecodeFile(path + "/" + configFile, &config)
 	return config, err 
 }
 
-func SaveProjectConfig(config ProjectConfig) {
-	SaveProjectConfigAt(config, "")
+func saveProjectConfig(config ProjectConfig) {
+	saveProjectConfigAt(config, "")
 }
 
-func SaveProjectConfigAt(config ProjectConfig, path string) error {
+func saveProjectConfigAt(config ProjectConfig, path string) error {
 	os.MkdirAll(path, os.ModePerm)
 
 	file, fileErr := os.Create(path + "/" + configFile)
@@ -58,7 +58,7 @@ func SaveProjectConfigAt(config ProjectConfig, path string) error {
 	return nil
 }
 
-func PrintProjectConfig(config ProjectConfig) {
+func printProjectConfig(config ProjectConfig) {
 	fmt.Printf("%+v", config)
 }
 
